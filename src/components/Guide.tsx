@@ -37,6 +37,9 @@ import { channelActions, cornerActions, type ChannelActions, type CornerActions 
 import { historyActions, InfoActions, type HistoryActions } from './InfoActions.tsx'
 import { ProgrammeInfo } from './ProgrammeInfo.tsx'
 import { GuideOptions } from './GuideOptions.tsx'
+import { InfoCentre } from './InfoCentre.tsx'
+import { BookmarksPanel } from './BookmarksPanel.tsx'
+import { FlagsPanel } from './FlagsPanel.tsx'
 import { loadGuideActionsAll, saveGuideActionsAll } from '../view/guide-actions-store.ts'
 import { NetworkEditor } from './NetworkEditor.tsx'
 import { GuidePanel } from './GuidePanel.tsx'
@@ -681,6 +684,12 @@ export function Guide({ closing = false }: { closing?: boolean }) {
 
       {tool === 'options' ? (
         <GuideOptions />
+      ) : tool === 'infocentre' ? (
+        <InfoCentre />
+      ) : tool === 'bookmarks' ? (
+        <BookmarksPanel />
+      ) : tool === 'flags' ? (
+        <FlagsPanel />
       ) : networkShown ? (
         <NetworkEditor onEdit={editFromNetwork} />
       ) : tv.visibleChannels.length === 0 ? (
@@ -942,7 +951,7 @@ export function Guide({ closing = false }: { closing?: boolean }) {
           onWatch={(channelNumber) => tv.dispatch({ type: 'tune', channelNumber })}
           onClose={() => tv.dispatch({ type: 'guide-tool', tool: 'media' })}
         />
-      ) : tool === 'options' || tool === 'editor' ? null : tool === 'users' ? (
+      ) : tool === 'options' || tool === 'infocentre' || tool === 'editor' || tool === 'bookmarks' || tool === 'flags' ? null : tool === 'users' ? (
         <NewUserTools
           name={newUserName}
           note={newUserNote}
@@ -1398,6 +1407,7 @@ function ProgrammePanel({
         now={now}
         alert={alert}
         next={next ? { title: next.programme.title, startMs: next.startMs, endMs: next.endMs } : undefined}
+        favourite={{ on: tv.favourites.includes(channel.number), onToggle: () => tv.dispatch({ type: 'favourite', channelNumber: channel.number }) }}
       />
       <InfoActions
         key={channel.number}

@@ -26,15 +26,16 @@ export function commandFromKey(
 
   if (/^[0-9]$/.test(key)) return { type: 'digit', digit: Number(key) }
 
+  // In Multi View ← and → move between the pictures; ↑ and ↓ change the selected picture's channel.
   const moveFocus = multiview && !guideOpen
 
   switch (key) {
     case 'ArrowUp':
       if (guideOpen) return { type: 'nav', direction: 'up' }
-      return moveFocus ? { type: 'focus-move', direction: 'up' } : { type: 'channel-up' }
+      return { type: 'channel-up' }
     case 'ArrowDown':
       if (guideOpen) return { type: 'nav', direction: 'down' }
-      return moveFocus ? { type: 'focus-move', direction: 'down' } : { type: 'channel-down' }
+      return { type: 'channel-down' }
     case 'ArrowLeft':
       if (guideOpen) return { type: 'nav', direction: 'left' }
       return moveFocus ? { type: 'focus-move', direction: 'left' } : { type: 'volume-down' }
@@ -56,53 +57,75 @@ export function commandFromKey(
     case 'g':
     case 'G':
       return { type: 'guide' }
-    case 'i':
-    case 'I':
+    case 'v':
+    case 'V':
       return { type: 'info' }
     case 'm':
     case 'M':
       return { type: 'mute' }
     case '/':
       return { type: 'multiview' }
-    case ',':
+    case '\\':
+      return { type: 'multiview', mode: '1' }
+    case '[':
+      return { type: 'pip-size', step: -1 }
+    case ']':
+      return { type: 'pip-size', step: 1 }
+    case 'b':
+    case 'B':
       return { type: 'history-back' }
-    case '.':
+    case 'n':
+    case 'N':
       return { type: 'history-forward' }
-    case 'a':
-    case 'A':
-      return { type: 'guide-tool', tool: 'add' }
+    case 'i':
+    case 'I':
+      return { type: 'guide-tool', tool: 'infocentre' }
     case 'f':
     case 'F':
       return { type: 'fullscreen' }
+    case 'a':
+    case 'A':
+      return { type: 'guide-tool', tool: 'add' }
     case 's':
     case 'S':
-      return { type: 'favourite' }
-    case 'c':
-    case 'C':
       return { type: 'subtitles' }
     case 'd':
     case 'D':
-      return { type: 'debug' }
-    case 'v':
-    case 'V':
-      return { type: 'guide-filter' }
+      return { type: 'bookmark' }
     case 'u':
     case 'U':
       return { type: 'media' }
+    case 'e':
+    case 'E':
+      return { type: 'export-all' }
+    case 'o':
+    case 'O':
+      return { type: 'guide-tool', tool: 'options' }
     case 'y':
     case 'Y':
-      return { type: 'user-channels' }
+      return { type: 'favourite' }
+    case 'c':
+    case 'C':
+      return { type: 'guide-cycle' }
+    // A channel's schedule, as the Guide's buttons arrange it: REFRESH (a new random order), LATEST and A to Z, and RELOAD.
     case 'r':
     case 'R':
-      return { type: 'guide-cycle' }
+      return { type: 'schedule', action: 'random' }
+    case 'q':
+    case 'Q':
+      return { type: 'schedule', action: 'reload' }
+    case 'l':
+    case 'L':
+      return { type: 'schedule', action: 'latest' }
+    case 'z':
+    case 'Z':
+      return { type: 'schedule', action: 'az' }
     case 't':
     case 'T':
       return { type: 'surf' }
-    case 'b':
-    case 'B':
+    case ',':
       return { type: 'step', direction: -1 }
-    case 'n':
-    case 'N':
+    case '.':
       return { type: 'step', direction: 1 }
     case 'h':
     case 'H':
@@ -110,8 +133,8 @@ export function commandFromKey(
       return { type: 'hints' }
     case 'Home':
       return { type: 'guide-now' }
-    case 'e':
-    case 'E':
+    case 'x':
+    case 'X':
     case 'ContextMenu':
       return { type: 'guide-tool', tool: 'edit' }
     // The unshifted keys: in the Guide they zoom the timeline, over the picture they set the volume.

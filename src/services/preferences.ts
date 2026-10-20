@@ -4,6 +4,7 @@ import { clamp } from '../utils/time.ts'
 import { clampGuideSplit } from '../view/guide-mode.ts'
 import { DEFAULT_FAVOURITES } from './default-favourites.ts'
 import { asShortcuts, DEFAULT_SHORTCUTS } from '../view/info-shortcuts.ts'
+import { asSpaceAction } from '../view/space-action.ts'
 import { EDITION } from '../edition.ts'
 
 export const PREFERENCES_KEY = 'retrotv.preferences.v1'
@@ -50,6 +51,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   subtitles: false,
   sleepMinutes: DEFAULT_SLEEP_MINUTES,
   infoShortcuts: DEFAULT_SHORTCUTS,
+  spaceAction: 'surf',
   defaultFavouritesOffered: true,
 }
 
@@ -65,7 +67,7 @@ function asFilter(value: unknown): GuideFilter {
 }
 
 function asMode(value: unknown): MultiviewMode {
-  return value === '2' || value === '4' || value === '9' ? value : '1'
+  return value === '2' || value === '4' || value === '9' || value === 'pip' ? value : '1'
 }
 
 function asNumbers(value: unknown): number[] {
@@ -140,6 +142,7 @@ export function loadPreferences(): UserPreferences {
       subtitles: record.subtitles === true,
       sleepMinutes: asSleepMinutes(record.sleepMinutes),
       infoShortcuts: asShortcuts(record.infoShortcuts),
+      spaceAction: asSpaceAction(record.spaceAction),
       defaultFavouritesOffered: true,
     }
   } catch {

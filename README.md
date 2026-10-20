@@ -24,7 +24,7 @@ Changed from TVN for hospital television, using only programmes already in the s
 - **122–139** and **891**: former trailer / promo slots, now calm nature, rail, classical, jazz, ambient, yoga, walking, wildlife, kids and film-score channels.
 - Broader hospital pass: horror, cult, combat-sport and medical-risk channel names renamed and re-routed; unsuitable publishers cleared from air. See [docs/WARDTV_HOSPITAL_AUDIT.md](docs/WARDTV_HOSPITAL_AUDIT.md).
 
-The viewer gets the Guide (All and Favourites), channel navigation, numbers, random surfing (Space or SURF), the Programme Director, Multi View, Favourites, programme information, Credits, Options (picture, sound, sleep, surf timing, shortcuts) and About · Sources · Legal.
+The viewer gets the Guide (All and Favourites), channel navigation, numbers, random surfing (Space or SURF), the Programme Director, Multi View (including picture-in-picture), Favourites, bookmarks, programme information, the Info centre (news, sports, weather and more), Credits, Options (picture, sound, playback, sleep, surf timing, Space bar, shortcuts, usage) and About · Sources · Legal. Keyboard, remote and on-screen key hints match TVN. User Network tools (Add, Edit, Export, schedule rearrange) still do nothing here because WardTV has no User Network; the hospital channel catalogue is the other intentional difference.
 
 Every page load tunes a random on-air channel from 001–999 (never 000 or Local Media). The first visit shows the welcome:
 

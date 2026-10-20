@@ -1,8 +1,10 @@
 import type { MultiviewMode } from '../types/preferences.ts'
 import type { NavDirection } from '../types/input.ts'
 
+/** / steps single → picture in picture → 2 → 4 → 9 → single; \ goes straight back to single. */
 export function cycleMultiview(mode: MultiviewMode): MultiviewMode {
-  if (mode === '1') return '2'
+  if (mode === '1') return 'pip'
+  if (mode === 'pip') return '2'
   if (mode === '2') return '4'
   if (mode === '4') return '9'
   return '1'
@@ -12,7 +14,68 @@ export function tileCount(mode: MultiviewMode): number {
   if (mode === '2') return 2
   if (mode === '4') return 4
   if (mode === '9') return 9
+  if (mode === 'pip') return 2
   return 1
+}
+
+/** The inset picture's width, as a share of the screen's: [ and ] step it, OPTIONS sets it. */
+export const PIP_SIZE_MIN = 15
+export const PIP_SIZE_MAX = 60
+export const PIP_SIZE_STEP = 5
+export const PIP_SIZE_DEFAULT = 30
+
+export function clampPipSize(value: unknown): number {
+  const size = typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : PIP_SIZE_DEFAULT
+  return Math.min(PIP_SIZE_MAX, Math.max(PIP_SIZE_MIN, size))
+}
+
+export const PIP_SIZE_KEY = 'tvn.pip-size.v1'
+
+type Store = Pick<Storage, 'getItem' | 'setItem'>
+const browserStore = (): Store | null => {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage
+  } catch {
+    return null
+  }
+}
+
+export function loadPipSize(store: Store | null = browserStore()): number {
+  const saved = store?.getItem(PIP_SIZE_KEY)
+  return clampPipSize(saved === null || saved === undefined ? undefined : Number(saved))
+}
+
+export function savePipSize(size: number, store: Store | null = browserStore()): void {
+  try {
+    store?.setItem(PIP_SIZE_KEY, String(clampPipSize(size)))
+  } catch {
+    // Private browsing may refuse storage; the size then lasts as long as the page.
+  }
+}
+
+/** The inset channel the viewer chose, kept between sessions; until then the inset is the next channel up. */
+export const PIP_CHANNEL_KEY = 'tvn.pip-channel.v1'
+
+export function loadPipChannel(store: Store | null = browserStore()): number | null {
+  const value = Number(store?.getItem(PIP_CHANNEL_KEY) ?? NaN)
+  return Number.isInteger(value) && value >= 0 ? value : null
+}
+
+export function savePipChannel(channelNumber: number, store: Store | null = browserStore()): void {
+  try {
+    store?.setItem(PIP_CHANNEL_KEY, String(channelNumber))
+  } catch {
+    // Private browsing may refuse storage; the choice then lasts as long as the page.
+  }
+}
+
+/**
+ * The tiles from single view: the watched channel first, then the channels after it in order, so the inset is
+ * one channel up, unless the viewer has chosen an inset channel before. A change of mode within Multi View keeps
+ * the tiles already on the wall.
+ */
+export function enterTiles(current: number, ordered: readonly number[], mode: MultiviewMode, pipChannel: number | null): number[] {
+  return fillTiles(current, ordered, tileCount(mode), mode === 'pip' && pipChannel !== null ? [pipChannel] : [])
 }
 
 export interface MultiviewLayout {
@@ -25,6 +88,8 @@ export interface MultiviewLayout {
 export function multiviewLayout(mode: MultiviewMode, viewportWidth: number): MultiviewLayout {
   const narrow = viewportWidth < 800
   if (mode === '1') return { columns: 1, pageSize: 1, stacked: false }
+  // Left and right move between the main picture and the inset.
+  if (mode === 'pip') return { columns: 2, pageSize: 2, stacked: false }
   if (mode === '2') {
     return narrow
       ? { columns: 1, pageSize: 2, stacked: true }
@@ -148,4 +213,30 @@ export function compactTracks(
 
 export function audibleTile(focus: number, count: number): boolean[] {
   return Array.from({ length: count }, (_, index) => index === focus)
+}
+
+/**
+ * A change of layout. From single view the watched channel leads, with the remembered PiP channel beside it and
+ * the first tile heard; within Multi View the heard tile's channel leads and the tiles are kept where they can be.
+ * Back to single view, `focus` is the channel the picture goes to.
+ */
+export function planMultiview(
+  from: MultiviewMode,
+  to: MultiviewMode,
+  watched: number,
+  tiles: readonly number[],
+  audioFocus: number,
+  ordered: readonly number[],
+  pipChannel: number | null,
+): { focus: number; tiles: number[]; audioFocus: number } {
+  const entering = from === '1'
+  const focus = entering ? watched : (tiles[audioFocus] ?? watched)
+  if (to === '1') return { focus, tiles: [...tiles], audioFocus }
+  const next = entering ? enterTiles(focus, ordered, to, pipChannel) : fillTiles(focus, ordered, tileCount(to), tiles)
+  return { focus, tiles: next, audioFocus: entering ? 0 : Math.min(audioFocus, Math.max(0, next.length - 1)) }
+}
+
+/** The inset the viewer chose: it changed while the main picture stayed. Null when there is nothing to remember. */
+export function pipToRemember(before: readonly number[] | null, tiles: readonly number[]): number | null {
+  return before && tiles.length > 1 && before[0] === tiles[0] && before[1] !== tiles[1] ? tiles[1] : null
 }

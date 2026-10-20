@@ -6,7 +6,6 @@ import type { Channel } from '../types/channel.ts'
 import type { GuideFilter } from '../types/preferences.ts'
 import { TVN_OWNER, USER_NETWORK_FALLBACK, userFilter } from '../data/user-network/users.ts'
 import { openRandomSettings } from './tvn-settings-store.ts'
-import { EDITION } from '../edition.ts'
 
 /** The actions that may sit in the corners of the information overlay's control pad. */
 export type ShortcutId = 'remote' | 'settings' | 'random' | 'fullscreen' | 'captions'
@@ -72,7 +71,6 @@ interface ShortcutBase {
 
 /** TV Surf's mark: the active User Network's name, or USER when it has none to show. */
 export function surfLabel(name: string | undefined): string {
-  if (!EDITION.userNetwork) return 'SURF'
   return (name?.replace(/\s+/g, ' ').trim() || USER_NETWORK_FALLBACK).toUpperCase()
 }
 
@@ -135,9 +133,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
     name: 'TV Surf',
     unavailable: 'TV Surf is not available',
     describe: (context) =>
-      !EDITION.userNetwork
-        ? 'Surf: another channel (Space)'
-        : context.randomScoped
+      context.randomScoped
         ? `Surf: ${surfLabel(context.surfScopeName)} only (Space) · right-click, hold or hold Space: surf all`
         : `Surf: ALL (Space) · right-click, hold or hold Space: surf ${surfLabel(context.surfScopeName)} only`,
     available: () => true,
@@ -145,8 +141,8 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
     // Lit while the Random Cycle (in Options) runs; accent-marked while it surfs one User Network.
     pressed: (context) => context.surfing,
     scoped: (context) => context.randomScoped === true,
-    hold: EDITION.userNetwork ? (context) => context.toggleSurfScope?.() : undefined,
-    menu: EDITION.userNetwork ? (context) => context.toggleSurfScope?.() : undefined,
+    hold: (context) => context.toggleSurfScope?.(),
+    menu: (context) => context.toggleSurfScope?.(),
   },
 }
 

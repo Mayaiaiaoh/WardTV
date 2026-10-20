@@ -6,6 +6,8 @@ import type { TvCommand } from '../types/input.ts'
 import type { GuideFilter, MultiviewMode } from '../types/preferences.ts'
 import type { GuideMode } from '../view/guide-mode.ts'
 import type { Corner, ShortcutAssignment, ShortcutId } from '../view/info-shortcuts.ts'
+import type { Bookmark } from '../view/bookmarks-store.ts'
+import type { SpaceAction } from '../view/space-action.ts'
 import type { PlayerHandle, PlayerStatus } from '../player/types.ts'
 import type { ChannelEdit, LoadMoreOptions } from '../services/channel-editor.ts'
 import type { ChannelSource } from '../services/channel-sources.ts'
@@ -67,6 +69,9 @@ export interface TvContextValue {
   guideMode: GuideMode
   guideSplit: number
   multiviewMode: MultiviewMode
+  /** Picture-in-picture inset width (percent of the screen). */
+  pipSize: number
+  setPipSize: (size: number) => number
   tiles: readonly number[]
   audioFocus: number
   multiviewPage: number
@@ -121,6 +126,9 @@ export interface TvContextValue {
   /** Puts an action in a corner, swapping it with the corner's current action. */
   setInfoShortcut: (corner: Corner, id: ShortcutId) => void
   resetInfoShortcuts: () => void
+  /** What Space does over the picture (OPTIONS). */
+  spaceAction: SpaceAction
+  setSpaceAction: (action: SpaceAction) => void
   /** The channel being edited over the picture, outside the Guide; null when none is. */
   screenEdit: number | null
   /** The information bar's Watch over the picture: the channel at NOW. */
@@ -265,6 +273,8 @@ export interface TvContextValue {
   sourceArchive: (source: import('../services/channel-sources.ts').ChannelSource) => readonly import('../services/channels-import.ts').ImportedVideo[]
   /** Play one of a channel's programmes (by its editor id) now; a message when it cannot, or null. */
   playChannelProgramme: (channelNumber: number, programmeId: string) => string | null
+  /** Turn bookmarked clips into a new User Network channel (not available when the User Network is off). */
+  createBookmarkChannel: (name: string, bookmarks: readonly Bookmark[]) => Promise<{ number: number | null; message: string }>
   /** Delete one user channel (after the editor's confirmation): it leaves the network, its Favourite with it. */
   deleteUserChannel: (channelNumber: number) => Promise<string>
   /** MOVE TO: a user channel inserted at User position `to`; every 1001+ channel is renumbered from 1001. */

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { formatBytes, formatPlayed, resetUsage, useUsage } from '../session/usage.ts'
 import { openAbout } from '../legal/about-store.ts'
 import { ChannelChangeOptions } from './ChannelChangeOptions.tsx'
 import { listChannels } from '../data/catalogue.ts'
@@ -12,7 +13,12 @@ import { rememberSupported, setRememberMedia, useRememberMedia } from '../sessio
 import { DISPLAY_QUALITIES, setDisplayQuality, useDisplayQuality } from '../view/display-quality.ts'
 import { setFillEdges, useFillEdges } from '../view/fill-edges.ts'
 import { setAssist, TAP_ACTIONS, useAssist } from '../view/assist.ts'
+import { setResumeFromPause, useResumeFromPause } from '../view/resume-from-pause.ts'
+import { setLoadingLogo, useLoadingLogo } from '../view/loading-logo.ts'
+import { setFlagAt, useFlagAt } from '../view/clip-flags.ts'
+import { PIP_SIZE_MAX, PIP_SIZE_MIN, PIP_SIZE_STEP } from '../view/multiview.ts'
 import { CORNER_LABELS, CORNERS, SHORTCUT_IDS, SHORTCUTS, type ShortcutId } from '../view/info-shortcuts.ts'
+import { SPACE_ACTIONS, type SpaceAction } from '../view/space-action.ts'
 import { EDITION } from '../edition.ts'
 
 /** Enter and Space press these controls; they must not also confirm (and tune) the guide cursor. */
@@ -40,6 +46,34 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
       <span className="options-label">{label}</span>
       <span className="options-control">{children}</span>
     </div>
+  )
+}
+
+/** OPTIONS → Usage: what this tab has downloaded since it opened, as far as the browser lets WardTV measure. */
+function UsageRows() {
+  const usage = useUsage()
+  const since = new Date(usage.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return (
+    <>
+      <Row label="Total, about">
+        <output className="options-value">{formatBytes(usage.dataBytes + usage.mediaBytes + usage.youtubeEstimate)}</output>
+      </Row>
+      <Row label={`YouTube · ${formatPlayed(usage.youtubeSeconds)} played, about`}>
+        <output className="options-value">{formatBytes(usage.youtubeEstimate)}</output>
+      </Row>
+      <Row label="Streams, podcasts & files">
+        <output className="options-value">{formatBytes(usage.mediaBytes)}</output>
+      </Row>
+      <Row label={`Pages & data · ${usage.dataRequests} ${usage.dataRequests === 1 ? 'request' : 'requests'}`}>
+        <output className="options-value">{formatBytes(usage.dataBytes)}</output>
+      </Row>
+      <p className="options-note">Measured in this browser tab since {since}. YouTube’s own estimate; other figures are what the browser reports.</p>
+      <div className="options-foot">
+        <button type="button" className="tab" onKeyDown={keepKey} onClick={() => resetUsage()}>
+          Reset
+        </button>
+      </div>
+    </>
   )
 }
 
@@ -179,6 +213,9 @@ export function GuideOptions() {
   const remember = useRememberMedia()
   const fill = useFillEdges()
   const assist = useAssist()
+  const holdPause = useResumeFromPause()
+  const logo = useLoadingLogo()
+  const flagAt = useFlagAt()
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const users = listChannels().filter((channel) => (channel.number >= USER_NUMBER_START || channel.origin === 'user-import') && !channel.emptySlot)
@@ -269,6 +306,14 @@ export function GuideOptions() {
           <Row label="Subtitles">{toggle(tv.subtitles, ['On', 'Off'], () => tv.dispatch({ type: 'subtitles' }))}</Row>
         </Card>
 
+        <Card title="Playback">
+          <p className="options-note">
+            When this is on, unpausing a clip continues from the moment you paused it. When it is off, unpausing rejoins wherever the Guide
+            timeline has moved on to.
+          </p>
+          <Row label="Resume where paused">{toggle(holdPause, ['On', 'Off'], () => setResumeFromPause(!holdPause))}</Row>
+        </Card>
+
         <Card title="Channel change" wide>
           <ChannelChangeOptions settings={tv.transition} onChange={tv.setTransition} />
         </Card>
@@ -291,8 +336,38 @@ export function GuideOptions() {
               </button>
             ))}
           </div>
+          <p className="options-note">The logo while WardTV loads: Pulse gently, or Spin.</p>
+          <div className="options-row">
+            <span className="options-label">Loading logo</span>
+            <span className="options-choices" role="radiogroup" aria-label="Loading logo">
+              {(['pulse', 'spin'] as const).map((mode) => (
+                <button key={mode} type="button" role="radio" aria-checked={logo === mode} className={logo === mode ? 'tab is-on' : 'tab'} onKeyDown={keepKey} onClick={() => setLoadingLogo(mode)}>
+                  {mode === 'pulse' ? 'Pulse' : 'Spin'}
+                </button>
+              ))}
+            </span>
+          </div>
           <p className="options-note">Where a programme does not cover the screen, such as a Short, fill the edges with its own picture, enlarged and blurred.</p>
           <Row label="Fill edges">{toggle(fill, ['On', 'Off'], () => setFillEdges(!fill))}</Row>
+          <p className="options-note">
+            Picture in picture is the first Multi View (press / to step through, \ for a single channel again): one channel fills the screen and a
+            second sits in the top right corner. [ and ] make the corner picture smaller or larger.
+          </p>
+          <label className="options-row">
+            <span className="options-label">Picture in picture size</span>
+            <span className="options-control">
+              <input
+                type="range"
+                min={PIP_SIZE_MIN}
+                max={PIP_SIZE_MAX}
+                step={PIP_SIZE_STEP}
+                value={tv.pipSize}
+                onKeyDown={keepKey}
+                onChange={(event) => tv.setPipSize(Number(event.target.value))}
+              />
+              <output className="options-value">{tv.pipSize}%</output>
+            </span>
+          </label>
         </Card>
 
         <Card title="Sleep">
@@ -345,17 +420,43 @@ export function GuideOptions() {
               Show
             </button>
           </Row>
+          <div className="options-row">
+            <span className="options-label">Flags</span>
+            <span className="options-choices" role="radiogroup" aria-label="Flags set">
+              {(
+                [
+                  ['start', 'At the start of the clip'],
+                  ['clicked', 'Where you click'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={flagAt === id}
+                  className={flagAt === id ? 'tab is-on' : 'tab'}
+                  onKeyDown={keepKey}
+                  onClick={() => setFlagAt(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+          </div>
+          <p className="options-note">Right-click a Guide clip to flag it for later. Flags open from the ♡ bookmarks round (C) when any are set.</p>
         </Card>
 
         <Card title="Random Cycle">
           <Row label="Random from">
             <span className="options-choices" role="group" aria-label="Random from">
               {(
-                [
-                  ['all', 'All'],
-                  ['user', userNetworkName(undefined, tv.networkUsers)],
-                  ...tv.networkUsers.map((user) => [userFilter(user.id), user.name] as const),
-                ] as const
+                EDITION.userNetwork
+                  ? ([
+                      ['all', 'All'],
+                      ['user', userNetworkName(undefined, tv.networkUsers)],
+                      ...tv.networkUsers.map((user) => [userFilter(user.id), user.name] as const),
+                    ] as const)
+                  : ([['all', 'All'], ['favourites', 'Favourites']] as const)
               ).map(([filter, label]) => (
                 <button
                   key={filter}
@@ -371,7 +472,9 @@ export function GuideOptions() {
             </span>
           </Row>
           <p className="options-note">
-            Random (TVN on the control pad, Space on a keyboard), CH+ and CH− draw from the Guide tab chosen here. TVN on the control pad is underlined while it draws from a User Network.
+            {EDITION.userNetwork
+              ? 'Random (Space on a keyboard), CH+ and CH− draw from the Guide tab chosen here.'
+              : 'Random (Space on a keyboard), CH+ and CH− draw from All or Favourites.'}
           </p>
           <p className="options-note">Hold SURF on the control pad to start or stop it (T on a keyboard); each hop comes after a random wait in this range.</p>
           <label className="options-row">
@@ -407,6 +510,22 @@ export function GuideOptions() {
           <Row label="Random Cycle">{toggle(tv.surfing, ['Stop', 'Start'], tv.toggleSurf)}</Row>
         </Card>
 
+        <Card title="Space bar">
+          <label className="options-row">
+            <span className="options-label">Space</span>
+            <span className="options-control">
+              <select aria-label="Space bar" value={tv.spaceAction} onChange={(event) => tv.setSpaceAction(event.target.value as SpaceAction)}>
+                {SPACE_ACTIONS.map((action) => (
+                  <option key={action.id} value={action.id}>
+                    {action.label}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+          <p className="options-note">A short press of Space over the picture. Surf is the default; holding Space still switches Surf scope.</p>
+        </Card>
+
         <Card title="Information overlay shortcuts">
           {CORNERS.map((corner) => (
             <label key={corner} className="options-row">
@@ -427,6 +546,10 @@ export function GuideOptions() {
               Reset to defaults
             </button>
           </div>
+        </Card>
+
+        <Card title="Usage this session">
+          <UsageRows />
         </Card>
 
         {EDITION.userNetwork ? (

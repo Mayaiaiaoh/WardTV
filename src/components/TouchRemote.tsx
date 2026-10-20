@@ -35,7 +35,7 @@ export function TouchRemote() {
           }}
         >
           <p className="tvn-settings-head">Random settings</p>
-          <p className="tvn-settings-note">Random Cycle. Hold SURF on the control pad to start or stop it; each hop comes after a random wait in this range.</p>
+          <p className="tvn-settings-note">Random Cycle. Hold TVN on the control pad to start or stop it; each hop comes after a random wait in this range.</p>
           <label className="tvn-range">
             <span>Minimum</span>
             <input
@@ -149,7 +149,7 @@ export function TouchRemote() {
                 <path d="M12 3v8" />
               </svg>
             </button>
-            <button type="button" title="Favourite (S)" onClick={() => tv.dispatch({ type: 'favourite' })}>
+            <button type="button" title="Favourite (Y)" onClick={() => tv.dispatch({ type: 'favourite' })}>
               Fav
             </button>
             <button type="button" onClick={() => tv.dispatch({ type: 'mute' })}>

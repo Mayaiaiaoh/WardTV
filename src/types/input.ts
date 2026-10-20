@@ -2,11 +2,24 @@ import type { GuideFilter } from './preferences.ts'
 
 export type NavDirection = 'up' | 'down' | 'left' | 'right'
 
+export type ScheduleAction = 'random' | 'reload' | 'latest' | 'az'
+
 /**
  * Guide actions that happen inside the Guide: MEDIA at 1000 Local Media, IMPORT (a User Network file) and ADD
- * at the foot of the User Network, and EDIT, the Channel Editor for one channel (right-click, long-press, or E).
+ * at the foot of the User Network, and EDIT, the Channel Editor for one channel (X, right-click, long-press, or the menu key).
  */
-export type GuideTool = 'media' | 'network' | 'add' | 'edit' | 'users' | 'options' | 'guides' | 'editor'
+export type GuideTool =
+  | 'media'
+  | 'network'
+  | 'add'
+  | 'edit'
+  | 'users'
+  | 'options'
+  | 'guides'
+  | 'editor'
+  | 'infocentre'
+  | 'bookmarks'
+  | 'flags'
 
 /**
  * Commands a keyboard, on-screen remote, or future gamepad can emit.
@@ -32,13 +45,16 @@ export type TvCommand =
   | { type: 'guide-expand' }
   | { type: 'guide-dock' }
   | { type: 'guide-split'; share: number }
-  | { type: 'multiview' }
+  /** / steps to the next Multi View; \ (mode '1') goes straight back to a single channel. */
+  | { type: 'multiview'; mode?: '1' }
   | { type: 'multiview-page'; page: number }
+  /** [ and ]: the picture-in-picture inset smaller or larger. */
+  | { type: 'pip-size'; step: -1 | 1 }
   | { type: 'focus-move'; direction: NavDirection }
   | { type: 'focus-tile'; index: number }
   | { type: 'tune'; channelNumber: number }
   | { type: 'user-channels' }
-  /** U: MEDIA, 1000 Local Media from files on this device. */
+  /** U: MEDIA, 1000 Local Media imported from files on this device. */
   | { type: 'media' }
   | { type: 'guide-tool'; tool: GuideTool; channelNumber?: number }
   | { type: 'remote' }
@@ -56,10 +72,19 @@ export type TvCommand =
   | { type: 'volume-down' }
   | { type: 'fullscreen' }
   | { type: 'favourite'; channelNumber?: number }
+  /** D: the clip on screen (or selected in the Guide) bookmarked, or its bookmark removed. */
+  | { type: 'bookmark' }
   | { type: 'debug' }
   | { type: 'guide-filter'; filter?: GuideFilter }
-  /** R: the next of the Guide's tabs, All → the User Network → each named user → Favourites → All. */
+  /** C: the next of the Guide's tabs, All → the User Network → each named user → Favourites → All. */
   | { type: 'guide-cycle' }
+  /**
+   * The schedule of one channel (the Guide's selected channel, else the one watched): R REFRESH, a fresh random order
+   * each press, L LATEST and Z A to Z on and off, as the Guide's buttons do, and X RELOAD its sources and schedule again.
+   */
+  | { type: 'schedule'; action: ScheduleAction; channelNumber?: number }
+  /** E: Export ALL, downloaded at once. */
+  | { type: 'export-all' }
   | { type: 'guide-now' }
   /** = zooms the Guide's timeline in (wider programmes, less time), - zooms it out. */
   | { type: 'guide-zoom'; direction: -1 | 1 }

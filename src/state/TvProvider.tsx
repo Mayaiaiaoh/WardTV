@@ -216,14 +216,24 @@ import { clampGuideSplit, guideTuneDecision, type GuideMode } from '../view/guid
 import { guideToolTarget } from '../view/guide-tool.ts'
 import {
   cycleMultiview,
+  enterTiles,
   fillTiles,
   focusStep,
   gridDelta,
+  loadPipChannel,
+  loadPipSize,
   multiviewLayout,
+  PIP_SIZE_STEP,
   replaceFocusedTile,
+  savePipSize,
   surfTile,
   tileCount,
 } from '../view/multiview.ts'
+import { bookmarkFor, toggleBookmark } from '../view/bookmarks-store.ts'
+import { clipFlags } from '../view/clip-flags.ts'
+import { holdPausedClip, resumeFromPause, takePausedClip, unpauseSeconds } from '../view/resume-from-pause.ts'
+import { asSpaceAction, commandForSpace, type SpaceAction } from '../view/space-action.ts'
+import type { Bookmark } from '../view/bookmarks-store.ts'
 import { isOnAir } from '../network/airing.ts'
 import { confirmStart, soundHeld, soundRefused, viewerInteracted, type StartHold } from '../player/autoplay.ts'
 import { canGoBack, canGoForward, commitHistory, EMPTY_HISTORY, historyStep, visit, type ViewingHistory } from './history.ts'
@@ -349,6 +359,21 @@ export function TvProvider({ children }: { children: ReactNode }) {
   const [guideMode, setGuideMode] = useState<GuideMode>('closed')
   const [guideSplit, setGuideSplit] = useState(stored.guideSplit)
   const [multiviewMode, setMultiviewMode] = useState<MultiviewMode>(stored.multiviewMode)
+  const [pipSize, setPipSizeState] = useState(() => loadPipSize())
+  const pipSizeRef = useRef(pipSize)
+  pipSizeRef.current = pipSize
+  const setPipSize = useCallback((size: number) => {
+    savePipSize(size)
+    const next = loadPipSize()
+    setPipSizeState(next)
+    return next
+  }, [])
+  const [spaceAction, setSpaceActionState] = useState<SpaceAction>(() => asSpaceAction(stored.spaceAction))
+  const spaceActionRef = useRef(spaceAction)
+  spaceActionRef.current = spaceAction
+  const setSpaceAction = useCallback((action: SpaceAction) => {
+    setSpaceActionState(asSpaceAction(action))
+  }, [])
   const [tiles, setTiles] = useState<number[]>(stored.multiviewChannels)
   const [audioFocus, setAudioFocus] = useState(stored.audioFocusIndex)
   const [multiviewPage, setMultiviewPage] = useState(0)
@@ -719,6 +744,11 @@ export function TvProvider({ children }: { children: ReactNode }) {
     const held = pausedWebRef.current
     pausedWebRef.current = null
     if (held && current?.number === held.channelNumber) resumeProgramme(held.channelNumber, held.programme, held.elapsedSeconds, Date.now(), held.slot)
+    const clip = takePausedClip()
+    const seconds = current ? unpauseSeconds(resumeFromPause(), clip, current.number) : null
+    if (seconds !== null && current && clip) {
+      resumeProgramme(current.number, clip.programme, seconds, Date.now(), clip.slot)
+    }
     const player = playerRef.current
     loadedKey.current = ''
     if (!current || !player || multiviewRef.current !== '1' || tuningRef.current || !playerReadyRef.current) return
@@ -908,8 +938,8 @@ export function TvProvider({ children }: { children: ReactNode }) {
   /** The + (new user) or OPTIONS panel standing in the Guide, if either is. */
   panelOpenRef.current = () => {
     const held = guideToolRef.current
-    if (held?.kind === 'guides' || held?.kind === 'editor') return held.kind
-    return held && (held.kind === 'users' || held.kind === 'options') && held.cursor === cursorRef.current ? held.kind : null
+    if (held?.kind === 'guides' || held?.kind === 'editor' || held?.kind === 'infocentre') return held.kind
+    return held && (held.kind === 'users' || held.kind === 'options' || held.kind === 'bookmarks' || held.kind === 'flags') && held.cursor === cursorRef.current ? held.kind : null
   }
 
   /** Every channel change comes through here and leaves a Guide pick behind, unless it is the tune that plays one. */
@@ -1394,6 +1424,14 @@ export function TvProvider({ children }: { children: ReactNode }) {
     playFromGuide(target, programme)
     return null
   }
+
+  const createBookmarkChannel = useCallback(async (_name: string, _bookmarks: readonly Bookmark[]) => {
+    if (!EDITION.userNetwork) {
+      return { number: null as number | null, message: 'CREATING A CHANNEL FROM BOOKMARKS NEEDS THE USER NETWORK' }
+    }
+    return { number: null as number | null, message: 'CREATING A CHANNEL FROM BOOKMARKS IS NOT AVAILABLE HERE' }
+  }, [])
+
   const playChannelProgramme = useCallback((channelNumber: number, programmeId: string) => playChannelRef.current(channelNumber, programmeId), [])
 
   /**
@@ -1805,6 +1843,11 @@ export function TvProvider({ children }: { children: ReactNode }) {
         else if (multiviewRef.current === '1') screenStep(command.direction)
         break
       case 'random-channel': {
+        const action = spaceActionRef.current
+        if (action !== 'surf') {
+          dispatchRef.current(commandForSpace(action))
+          break
+        }
         const picked = randomTarget(channelRef.current, { filter: guideFilter, favourites })
         if (picked) requestTune(picked.number)
         else flash(emptyUniverseNote(guideFilter))
@@ -1885,7 +1928,7 @@ export function TvProvider({ children }: { children: ReactNode }) {
         break
       case 'multiview': {
         guideEngine.current.suspend()
-        const nextMode = cycleMultiview(multiviewRef.current)
+        const nextMode = command.mode === '1' ? '1' : cycleMultiview(multiviewRef.current)
         const ordered = listChannels()
           .filter((item) => item.enabled && item.origin !== 'session' && !isLiveStreamChannel(item))
           .map((item) => item.number)
@@ -1899,7 +1942,10 @@ export function TvProvider({ children }: { children: ReactNode }) {
           break
         }
         clearManual()
-        const nextTiles = fillTiles(focusChannel, ordered, tileCount(nextMode), tilesRef.current)
+        const nextTiles =
+          multiviewRef.current === '1'
+            ? enterTiles(focusChannel, ordered, nextMode, loadPipChannel())
+            : fillTiles(focusChannel, ordered, tileCount(nextMode), tilesRef.current)
         tilesRef.current = nextTiles
         setTiles(nextTiles)
         audioFocusRef.current = Math.min(audioFocusRef.current, Math.max(0, nextTiles.length - 1))
@@ -1910,6 +1956,12 @@ export function TvProvider({ children }: { children: ReactNode }) {
         multiviewRef.current = nextMode
         setMultiviewMode(nextMode)
         setMultiviewPage(0)
+        break
+      }
+      case 'pip-size': {
+        if (multiviewRef.current !== 'pip') break
+        const size = setPipSize(pipSizeRef.current + command.step * PIP_SIZE_STEP)
+        flash(`PICTURE IN PICTURE · ${size}%`, 1200)
         break
       }
       case 'focus-move': {
@@ -1943,7 +1995,20 @@ export function TvProvider({ children }: { children: ReactNode }) {
         openGuideTool(command.tool, command.channelNumber)
         break
       case 'guide-cycle': {
+        if (guideOpenRef.current && panelOpenRef.current() === 'bookmarks' && clipFlags().length > 0) {
+          openGuideTool('flags')
+          break
+        }
+        if (guideOpenRef.current && (panelOpenRef.current() === 'bookmarks' || panelOpenRef.current() === 'flags')) {
+          closeGuideTool()
+          setGuideFilter('all')
+          break
+        }
         const next = nextGuideTab(guideFilter, usersRef.current.map((user) => user.id))
+        if (guideOpenRef.current && guideFilter === 'favourites' && next === 'all') {
+          openGuideTool('bookmarks')
+          break
+        }
         setGuideFilter(next)
         if (!guideOpenRef.current) flash(`GUIDE · ${guideTabLabel(next, usersRef.current)}`)
         break
@@ -1991,6 +2056,13 @@ export function TvProvider({ children }: { children: ReactNode }) {
             here && airing && (airing.programme.programmeType === 'website' || airing.programme.programmeType === 'social-post')
               ? { channelNumber: here.number, programme: airing.programme, elapsedSeconds: airing.elapsedSeconds, slot: { startMs: airing.startMs, endMs: airing.endMs } }
               : null
+          const at = playerRef.current?.currentTime()
+          const seconds = typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : airing?.seekSeconds
+          holdPausedClip(
+            resumeFromPause() && here && airing && seekable(here, airing.programme) && seconds !== undefined
+              ? { channelNumber: here.number, programme: airing.programme, seconds, slot: { startMs: airing.startMs, endMs: airing.endMs } }
+              : null,
+          )
           pausedRef.current = true
           setPaused(true)
           pauseViewing(playerRef.current)
@@ -2051,6 +2123,33 @@ export function TvProvider({ children }: { children: ReactNode }) {
         if (command.channelNumber === undefined) flash(adding ? `★ FAVOURITE · ${padChannel(number)}` : `☆ FAVOURITE REMOVED · ${padChannel(number)}`, 1400)
         break
       }
+      case 'bookmark': {
+        const number = guideOpenRef.current ? cursorRef.current.channelNumber : channelRef.current
+        const target = channelByNumber(number)
+        if (!target) break
+        const { programme } = onScreen(target, guideOpenRef.current ? cursorRef.current.timeMs : Date.now()).current
+        if (programme.liveStream !== undefined || !hasPicture(programme)) {
+          flash('NOTHING TO BOOKMARK HERE', 1400)
+          break
+        }
+        const on = toggleBookmark(bookmarkFor(target, programme))
+        flash(on ? `♥︎ BOOKMARKED · ${programme.title}` : `BOOKMARK REMOVED · ${programme.title}`, 1600)
+        break
+      }
+      case 'schedule': {
+        if (!EDITION.userNetwork) {
+          flash('SCHEDULE TOOLS NEED THE USER NETWORK', 2200)
+          break
+        }
+        flash('SCHEDULE TOOLS ARE NOT AVAILABLE HERE', 2200)
+        break
+      }
+      case 'export-all':
+        if (!EDITION.userNetwork) {
+          flash('EXPORT ALL IS NOT PART OF WARDTV', 2200)
+          break
+        }
+        break
       case 'debug':
         setDebugOpen((open) => !open)
         break
@@ -2869,7 +2968,8 @@ export function TvProvider({ children }: { children: ReactNode }) {
         subtitles: subtitlesRef.current,
         sleepMinutes: sleepMinutesRef.current,
         guideSplit: guideSplitRef.current,
-        infoShortcuts: infoShortcutsRef.current,
+        spaceAction,
+      infoShortcuts: infoShortcutsRef.current,
         surfRange: surfRangeRef.current,
         transition: transitionRef.current.id,
         transitionStyle: transitionRef.current,
@@ -3624,6 +3724,7 @@ export function TvProvider({ children }: { children: ReactNode }) {
       multiviewChannels: tiles,
       subtitles,
       sleepMinutes,
+      spaceAction,
       infoShortcuts,
       defaultFavouritesOffered: true,
     })
@@ -3631,6 +3732,7 @@ export function TvProvider({ children }: { children: ReactNode }) {
     audioFocus,
     channelNumber,
     sleepMinutes,
+    spaceAction,
     infoShortcuts,
     favourites,
     guideFilter,
@@ -3804,6 +3906,11 @@ export function TvProvider({ children }: { children: ReactNode }) {
       importChannelFile,
       sourceArchive,
       playChannelProgramme,
+      createBookmarkChannel,
+      pipSize,
+      setPipSize,
+      spaceAction,
+      setSpaceAction,
       deleteUserChannel,
       moveUserChannel,
       arrangeUserNetwork,
@@ -3830,6 +3937,11 @@ export function TvProvider({ children }: { children: ReactNode }) {
       exportChannelFile,
       importChannelFile,
       playChannelProgramme,
+      createBookmarkChannel,
+      pipSize,
+      setPipSize,
+      spaceAction,
+      setSpaceAction,
       deleteUserChannel,
       moveUserChannel,
       arrangeUserNetwork,

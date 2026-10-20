@@ -79,8 +79,9 @@ describe('WardTV edition', () => {
     expect(editorScope(channel(1000, 'session'))).toBe('local')
   })
 
-  it('labels the surf button SURF, not a network name', () => {
-    expect(surfLabel('TVN')).toBe('SURF')
+  it('labels the surf button with the network name, same as TVN', () => {
+    expect(surfLabel('TVN')).toBe('TVN')
+    expect(surfLabel(undefined)).toBe('USER')
   })
 
   it('has one entry: every address starts the television normally', () => {
@@ -182,6 +183,52 @@ describe('WardTV site', () => {
         return /\.(ts|tsx|json|html|css|txt|webmanifest)$/.test(name) && key.test(readFileSync(path, 'utf8')) ? [path] : []
       })
     expect([...scan(resolve(root, 'src')), ...scan(resolve(root, 'public'))]).toEqual([])
+  })
+})
+
+describe('WardTV Info Centre and access keys', () => {
+  it('ships the Info Centre modules and Guide Info tab', async () => {
+    const { INFO_MODULES } = await import('./components/InfoCentre.tsx')
+    expect(INFO_MODULES.map((module) => module.id)).toEqual([
+      'news',
+      'sports',
+      'weather',
+      'entertainment',
+      'business',
+      'on-this-day',
+      'shopping',
+    ])
+    expect(read('src/components/GuideAdd.tsx')).toContain("onTool('infocentre')")
+    expect(read('src/components/Guide.tsx')).toContain('<InfoCentre />')
+  })
+
+  it('uses the same letter keys as TVN for Info, Options, Favourites, Bookmarks and Subtitles', async () => {
+    const { commandFromKey } = await import('./input/keyboard.ts')
+    const plain = { meta: false, ctrl: false, alt: false }
+    expect(commandFromKey('I', plain, false)).toEqual({ type: 'guide-tool', tool: 'infocentre' })
+    expect(commandFromKey('V', plain, false)).toEqual({ type: 'info' })
+    expect(commandFromKey('O', plain, false)).toEqual({ type: 'guide-tool', tool: 'options' })
+    expect(commandFromKey('Y', plain, false)).toEqual({ type: 'favourite' })
+    expect(commandFromKey('D', plain, false)).toEqual({ type: 'bookmark' })
+    expect(commandFromKey('S', plain, false)).toEqual({ type: 'subtitles' })
+    expect(commandFromKey('A', plain, false)).toEqual({ type: 'guide-tool', tool: 'add' })
+    expect(commandFromKey('X', plain, false)).toEqual({ type: 'guide-tool', tool: 'edit' })
+    expect(commandFromKey('E', plain, false)).toEqual({ type: 'export-all' })
+    expect(commandFromKey('C', plain, false)).toEqual({ type: 'guide-cycle' })
+    expect(commandFromKey('R', plain, false)).toEqual({ type: 'schedule', action: 'random' })
+    expect(commandFromKey('\\', plain, false)).toEqual({ type: 'multiview', mode: '1' })
+    expect(commandFromKey('[', plain, false)).toEqual({ type: 'pip-size', step: -1 })
+    expect(commandFromKey(']', plain, false)).toEqual({ type: 'pip-size', step: 1 })
+    expect(commandFromKey('B', plain, false)).toEqual({ type: 'history-back' })
+    expect(commandFromKey(',', plain, false)).toEqual({ type: 'step', direction: -1 })
+  })
+
+  it('shows the same on-screen key hints as TVN', () => {
+    expect(read('src/components/Hints.tsx')).toContain(
+      '↑↓ Channel · G Guide · V Picture info · I Info · 0–9 Tune · ⌫ Last · B N Prev/Next · , . Programme · Space Surf (hold: ALL / network) · P Pause · Y Favourite · D Bookmark · S Subtitles · M Mute · / Multi · \\ Single · A Add · U Media · C All / User / Fav · X Edit · R Refresh · Q Reload · L Latest · Z A to Z · E Export ALL · O Options · T Cycle · − = Guide zoom · Home now',
+    )
+    expect(read('src/components/TouchRemote.tsx')).toContain('Favourite (Y)')
+    expect(read('src/legal/entry-keys.ts')).toContain("letter('Y', 'Fav')")
   })
 })
 
