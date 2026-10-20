@@ -8,7 +8,7 @@ import { mergeSources } from '../types/source.ts'
  */
 const PROVISIONAL_SERVICE: Record<number, string> = {
   102: 'World Cinema',
-  150: 'Classic Trailers',
+  150: 'Daytime Drama',
   700: 'Cooking',
   901: 'Concert Hall',
   902: 'Night Music',

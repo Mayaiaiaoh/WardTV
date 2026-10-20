@@ -215,6 +215,48 @@ describe('WardTV channels for hospital television', () => {
     776: ['src_balu_nature', 'src_national_rail_scenic', 'src_nature_relaxation_films', 'src_rail_relaxation', 'src_relaxation_film'],
     777: ['src_lonely_planet', 'src_rick_steves', 'src_wolters_world'],
   } as const
+  const calmBlock = {
+    122: 'Nature Ambient',
+    123: 'Scenic Rail',
+    124: 'Classical Calm',
+    125: 'Jazz Lounge',
+    126: 'Ambient Dreams',
+    127: 'Yoga Hour',
+    128: 'Walking Tours',
+    129: 'Quiet Cities',
+    130: 'Open Country',
+    131: 'Model Railways',
+    132: 'Wild Earth',
+    133: 'Wildlife Hour',
+    134: 'Ocean Quiet',
+    135: 'Bluey',
+    136: 'Mr Bean',
+    137: 'Film Scores',
+    138: 'Travel Archive',
+    139: 'Thunderbirds',
+    891: 'Night Calm',
+  } as const
+  const calmSources = {
+    122: ['src_nature_relaxation_films', 'src_balu_nature', 'src_relaxation_film'],
+    123: ['src_rail_relaxation'],
+    124: ['src_hr_symphony'],
+    125: ['src_jalc'],
+    126: ['src_hammock'],
+    127: ['src_yoga_adriene'],
+    128: ['src_prowalk'],
+    129: ['src_rambalac'],
+    130: ['src_j_utah'],
+    131: ['src_sams_trains'],
+    132: ['src_free_documentary_nature'],
+    133: ['src_real_wild'],
+    134: ['src_schmidt_ocean'],
+    135: ['src_bluey'],
+    136: ['src_mr_bean'],
+    137: ['src_soundworks'],
+    138: ['src_travel_film_archive'],
+    139: ['src_gerry_anderson'],
+    891: ['src_nature_relaxation_films', 'src_hammock', 'src_rail_relaxation'],
+  } as const
 
   it('ships no podcast edits', () => {
     expect(JSON.parse(read('src/data/central-edits.json')).channels).toEqual({})
@@ -242,6 +284,75 @@ describe('WardTV channels for hospital television', () => {
       const on = playable.items.filter((item) => item[4].includes(number))
       expect(on.length).toBeGreaterThan(400)
       expect(new Set(on.map((item) => item[3]))).toEqual(new Set(sources[number]))
+    }
+  })
+
+  it('keeps only Trailer TV and Classic Trailers in the trailer block', () => {
+    const canon = JSON.parse(read('src/data/canonical-network.json')) as { channels: { number: number; name: string }[] }
+    expect(canon.channels.find((channel) => channel.number === 120)?.name).toBe('Trailer TV')
+    expect(canon.channels.find((channel) => channel.number === 121)?.name).toBe('Classic Trailers')
+    for (const [number, name] of Object.entries(calmBlock)) {
+      expect(canon.channels.find((channel) => channel.number === Number(number))?.name).toBe(name)
+    }
+    const names = canon.channels.map((channel) => channel.name)
+    expect(names).not.toContain('Horror Trailers')
+    expect(names).not.toContain('Thriller Trailers')
+    expect(names).not.toContain('Cult Trailers')
+    expect(names).not.toContain('Trailers & Promos')
+  })
+
+  it('routes calm replacements and soft trailers from shipped creators', () => {
+    const manifest = JSON.parse(read('src/data/independent/manifest.json')) as { routes: { number: number; sourceIds: string[] }[] }
+    expect(manifest.routes.find((route) => route.number === 120)?.sourceIds).toEqual(['src_rt_trailers', 'src_rt_classic_trailers'])
+    expect(manifest.routes.find((route) => route.number === 121)?.sourceIds).toEqual(['src_rt_classic_trailers'])
+    for (const [number, ids] of Object.entries(calmSources)) {
+      expect(manifest.routes.find((route) => route.number === Number(number))?.sourceIds).toEqual(ids)
+    }
+  })
+
+  it('ships hospital-safe trailer schedules and full calm schedules', () => {
+    const playable = JSON.parse(read('public/independent/playable.json')) as {
+      items: [string, string, number, string, number[]][]
+      trailerGenres?: Record<string, [string, string[]]>
+      filmGenres?: Record<string, string[]>
+    }
+    const risk = /horror|gore|slasher|zombie|torture|erotic|cannibal|exorcist|chainsaw|grindhouse|splatter/i
+    for (const number of [120, 121] as const) {
+      const on = playable.items.filter((item) => item[4].includes(number))
+      expect(on.length).toBeGreaterThan(100)
+      for (const item of on) {
+        expect(item[1]).not.toMatch(risk)
+        const genres = new Set(
+          (playable.trailerGenres?.[item[0]]?.[1] ?? playable.filmGenres?.[item[0]] ?? []) as string[],
+        )
+        expect(genres.has('Horror')).toBe(false)
+        expect(genres.has('Thriller')).toBe(false)
+      }
+    }
+    for (const number of Object.keys(calmSources).map(Number)) {
+      const on = playable.items.filter((item) => item[4].includes(number))
+      expect(on.length).toBeGreaterThan(40)
+      const allowed = new Set(calmSources[number as keyof typeof calmSources])
+      expect([...new Set(on.map((item) => item[3]))].every((id) => allowed.has(id))).toBe(true)
+    }
+  })
+
+  it('clears hospital-banned publishers from the playable catalogue', () => {
+    const playable = JSON.parse(read('public/independent/playable.json')) as { items: [string, string, number, string, number[]][] }
+    const banned = new Set([
+      'src_trailers_from_hell',
+      'src_dead_meat',
+      'src_adult_swim',
+      'src_alter',
+      'src_wwe_vault',
+      'src_wcw',
+      'src_wwe',
+      'src_top_rank',
+      'src_one',
+      'src_chubbyemu',
+    ])
+    for (const item of playable.items) {
+      if (banned.has(item[3])) expect(item[4]).toEqual([])
     }
   })
 })

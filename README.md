@@ -11,7 +11,7 @@ WardTV is an independent edition of TVN, taken from TVN commit `4242c2b`. It is 
 | Channels | What they are |
 | --- | --- |
 | 000 | The WardTV channel surfer: plays something airing elsewhere, then chooses another |
-| 001–999 | The curated central catalogue from TVN `4242c2b`, with three channels made more suitable for hospital television (below) |
+| 001–999 | The curated central catalogue from TVN `4242c2b`, with hospital-safe channel changes (below) |
 | 991–1000 | Local Media: files chosen from the viewer's own device, played in the browser and never uploaded |
 | 1001 and up | Not available |
 
@@ -20,6 +20,9 @@ Changed from TVN for hospital television, using only programmes already in the s
 - **729 Cosy Kitchen**: calm, quiet cooking (Li Ziqi, Dianxi Xiaoge, Pasta Grannies, Made With Lau), in place of a podcast.
 - **776 Slow TV**: unhurried rail journeys and nature films (Rail Relaxation, Nature Relaxation Films, Balu, Relaxation Film, National Rail Scenic Railway Journeys), in place of a podcast.
 - **777 Armchair Travel**: Rick Steves' Europe, Lonely Planet and Wolters World, in place of a podcast.
+- **120 Trailer TV** / **121 Classic Trailers**: the only trailer channels kept; soft / classic trailers only (no horror or thriller genres).
+- **122–139** and **891**: former trailer / promo slots, now calm nature, rail, classical, jazz, ambient, yoga, walking, wildlife, kids and film-score channels.
+- Broader hospital pass: horror, cult, combat-sport and medical-risk channel names renamed and re-routed; unsuitable publishers cleared from air. See [docs/WARDTV_HOSPITAL_AUDIT.md](docs/WARDTV_HOSPITAL_AUDIT.md).
 
 The viewer gets the Guide (All and Favourites), channel navigation, numbers, random surfing (Space or SURF), the Programme Director, Multi View, Favourites, programme information, Credits, Options (picture, sound, sleep, surf timing, shortcuts) and About · Sources · Legal.
 

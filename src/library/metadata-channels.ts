@@ -101,21 +101,15 @@ export const ERA_RULES: readonly EraRule[] = [
   { channel: 178, from: 1990, to: 1999, bases: ['film'], sources: set(FILMS), minSeconds: 3600 },
   { channel: 179, from: 2000, to: 2009, bases: ['film'], sources: set(FILMS), minSeconds: 3600 },
   { channel: 180, from: 2010, to: 2019, bases: ['film'], sources: set(FILMS), minSeconds: 3600 },
-  { channel: 141, from: 1920, to: 1979, bases: ['film'], sources: set(FILMS), minSeconds: 3600, title: /\bhorror\b/i },
+  // WardTV hospital: no horror-title film era channel. Classic Features uses film_detective via dedication.
   { channel: 145, from: 1920, to: 1979, bases: ['film'], sources: set(FILMS), minSeconds: 3600, title: /sci-?fi|science fiction/i },
   { channel: 111, from: 1930, to: 1959, bases: ['film'], sources: set(FILMS), minSeconds: 3600 },
   { channel: 275, from: 1950, to: 1999, bases: ['episode'], sources: set(['src_buzzr']) },
   { channel: 287, from: 1950, to: 1999, bases: ['episode'], sources: set(['src_red_green']) },
   { channel: 288, from: 1950, to: 1999, bases: ['episode'], sources: set(['src_royal_institution', 'src_buzzr', 'src_red_green']) },
   { channel: 303, from: 1930, to: 2015, bases: ['event'], sources: set(FOOTBALL_CLASSICS) },
-  { channel: 122, from: 1950, to: 1959, bases: ['trailer'], sources: set(TRAILERS) },
-  { channel: 123, from: 1960, to: 1969, bases: ['trailer'], sources: set(TRAILERS) },
-  { channel: 124, from: 1970, to: 1979, bases: ['trailer'], sources: set(TRAILERS) },
-  { channel: 125, from: 1980, to: 1989, bases: ['trailer'], sources: set(TRAILERS) },
-  { channel: 126, from: 1990, to: 1999, bases: ['trailer'], sources: set(TRAILERS) },
-  { channel: 127, from: 2000, to: 2009, bases: ['trailer'], sources: set(TRAILERS) },
-  { channel: 128, from: 2010, to: 2019, bases: ['trailer'], sources: set(TRAILERS) },
-  { channel: 121, from: 1920, to: 1969, bases: ['trailer'], sources: set(TRAILERS) },
+  // WardTV hospital: only Classic Trailers keeps an era route; decade trailer channels were replaced.
+  { channel: 121, from: 1920, to: 1979, bases: ['trailer'], sources: set(TRAILERS) },
 ]
 
 const ERA_CHANNELS = new Set(ERA_RULES.map((rule) => rule.channel))
@@ -218,7 +212,7 @@ export function artistOf(programme: { sourceId?: string; title?: string }): stri
 export const FILM_GENRE_CHANNELS: Readonly<Record<string, readonly number[]>> = {
   Action: [34],
   Adventure: [149],
-  Thriller: [150],
+  // WardTV hospital: Thriller / Horror features are not auto-routed onto the network.
   Crime: [151],
   Mystery: [152],
   Comedy: [153],
@@ -228,17 +222,16 @@ export const FILM_GENRE_CHANNELS: Readonly<Record<string, readonly number[]>> = 
 }
 /**
  * Trailer-genre channels fed by the film's Wikidata genres, matched on exact title and original year
- * (scripts/trailer_genres.py, cached at build time). Listed scarcest first: a trailer joins at most
- * TRAILER_GENRE_LIMIT of them, so the largest pools give way when a film carries many genres.
+ * (scripts/trailer_genres.py, cached at build time). WardTV hospital keeps soft genres on Trailer TV only.
  */
 export const TRAILER_GENRE_CHANNELS: Readonly<Record<string, readonly number[]>> = {
-  Animation: [135],
-  Fantasy: [138],
-  'Science Fiction': [131],
-  Horror: [130],
-  Thriller: [137],
-  Action: [132],
-  Drama: [136],
+  Animation: [120],
+  Comedy: [120],
+  Family: [120],
+  Documentary: [120],
+  Musical: [120],
+  Music: [120],
+  Romance: [120],
 }
 export const TRAILER_GENRE_SOURCE = 'src_rt_classic_trailers'
 export const TRAILER_GENRE_LIMIT = 3
