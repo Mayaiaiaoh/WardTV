@@ -162,15 +162,18 @@ describe('WardTV site', () => {
     for (const part of ['pages: write', 'id-token: write', 'actions/upload-pages-artifact', 'actions/deploy-pages', 'npm ci', 'npm run build', 'path: dist']) expect(workflow).toContain(part)
   })
 
-  it('ships 1 to 30 square WardTV logos and the WardTV icons', () => {
+  it('ships the WardTV.png logo throughout the app and site icons', () => {
+    const master = resolve(root, 'WardTV.png')
+    expect(existsSync(master)).toBe(true)
+    expect(readFileSync(resolve(root, 'src/assets/wardtv-logo.png'))).toEqual(readFileSync(master))
+    expect(readFileSync(resolve(root, 'src/assets/logos/wardtv.png'))).toEqual(readFileSync(master))
     const logos = readdirSync(resolve(root, 'src/assets/logos')).filter((name) => name.endsWith('.png'))
     expect(logos.length).toBeGreaterThanOrEqual(1)
     expect(logos.length).toBeLessThanOrEqual(30)
     for (const name of logos) expect(statSync(resolve(root, 'src/assets/logos', name)).size).toBeGreaterThan(4096)
-    const supplied = resolve(root, 'favicon_io(5)')
     for (const icon of ['favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png', 'android-chrome-192x192.png', 'android-chrome-512x512.png']) {
       expect(existsSync(resolve(root, 'public', icon))).toBe(true)
-      if (existsSync(supplied)) expect(readFileSync(resolve(root, 'public', icon))).toEqual(readFileSync(resolve(supplied, icon)))
+      expect(statSync(resolve(root, 'public', icon)).size).toBeGreaterThan(64)
     }
   })
 

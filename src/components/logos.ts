@@ -1,6 +1,6 @@
 /**
- * Every PNG dropped into src/assets/logos (1 to 30 of them, square) is a TVN logo. Only the URLs are bundled, so a
- * page load fetches just the one it picks.
+ * Every PNG dropped into src/assets/logos (1 to 30 of them, square) is a WardTV logo. Only the URLs are bundled, so a
+ * page load fetches just the one it picks. The brand file is WardTV.png at the repo root, copied here as wardtv.png.
  */
 export const LOGOS: readonly string[] = Object.values(
   import.meta.glob<string>('../assets/logos/*.png', { eager: true, import: 'default' }),
